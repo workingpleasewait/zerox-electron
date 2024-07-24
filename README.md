@@ -46,10 +46,6 @@ Zerox-Electron is a simple macOS application for processing and converting PDF f
 ### Important Note
 - Make sure to verify the combined output text file before clicking the "Delete PDFs" button to ensure all data has been correctly processed.
 
-## Example Screenshots
-
-![Zerox-Electron Screenshot](path/to/screenshot.png)
-
 ## Troubleshooting
 
 - If the application does not respond, ensure you have the correct directory selected and that your OpenAI API key is valid.
