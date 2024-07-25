@@ -4,20 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PDF Processor</title>
-  <style>
-    #loading {
-      display: none;
-      font-size: 1.2em;
-      color: blue;
-    }
-    #instructions {
-      margin-top: 20px;
-      font-size: 1.1em;
-      color: green;
-    }
-  </style>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self';">
+  <style id="dynamic-style"></style>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'nonce-'; style-src 'self' 'nonce-' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data:; font-src 'self';">
 </head>
 <body>
   <h1>PDF Processor</h1>
@@ -29,54 +17,84 @@
   <div id="loading">Processing PDFs, please wait...</div>
   <div id="instructions">Please verify the combined output in the text file before deleting the PDFs.</div>
 
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
+  <script id="dynamic-script"></script>
   <script>
-    const selectDirectoryButton = document.getElementById('select-directory');
-    const processPDFsButton = document.getElementById('process-pdfs');
-    const deletePDFsButton = document.getElementById('delete-pdfs');
-    const outputElement = document.getElementById('output');
-    const loadingElement = document.getElementById('loading');
-    const instructionsElement = document.getElementById('instructions');
+    document.addEventListener("DOMContentLoaded", () => {
+      const nonce = window.electronAPI.getNonce();
 
-    let selectedDirectory = '';
+      // Update CSP
+      const cspMetaTag = document.querySelector('meta[http-equiv="Content-Security-Policy"]');
+      cspMetaTag.setAttribute('content', `default-src 'self'; script-src 'self' 'nonce-${nonce}'; style-src 'self' 'nonce-${nonce}' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data:; font-src 'self';`);
 
-    selectDirectoryButton.addEventListener('click', async () => {
-      console.log('Select Directory button clicked');
-      selectedDirectory = await window.electronAPI.selectDirectory();
-      outputElement.textContent = `Selected Directory: ${selectedDirectory}`;
-    });
+      // Set nonce for dynamic script
+      const dynamicScript = document.getElementById('dynamic-script');
+      dynamicScript.setAttribute('nonce', nonce);
+      dynamicScript.src = 'https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js';
 
-    processPDFsButton.addEventListener('click', async () => {
-      console.log('Process PDFs button clicked');
-      const apiKey = document.getElementById('api-key').value;
-      if (!apiKey) {
-        Swal.fire('Error', 'Please enter your OpenAI API key.', 'error');
-        return;
-      }
-      loadingElement.style.display = 'block';  // Show the loading indicator
-      const result = await window.electronAPI.processPDFs(selectedDirectory, apiKey);
-      loadingElement.style.display = 'none';  // Hide the loading indicator
-      if (result.error) {
-        Swal.fire('Error', result.error, 'error');
-      } else {
-        outputElement.textContent = result.success;
-        instructionsElement.style.display = 'block';  // Show instructions
-        Swal.fire('Success', 'PDFs processed successfully.', 'success');
-      }
-    });
+      // Set nonce for inline style
+      const dynamicStyle = document.getElementById('dynamic-style');
+      dynamicStyle.setAttribute('nonce', nonce);
+      dynamicStyle.textContent = `
+        #loading {
+          display: none;
+          font-size: 1.2em;
+          color: blue;
+        }
+        #instructions {
+          margin-top: 20px;
+          font-size: 1.1em;
+          color: green;
+        }
+      `;
 
-    deletePDFsButton.addEventListener('click', async () => {
-      console.log('Delete PDFs button clicked');
-      const confirmed = confirm('Have you verified the combined output text file and are sure you want to delete the PDFs?');
-      if (confirmed) {
-        const result = await window.electronAPI.deletePDFs(selectedDirectory);
+      // Inline script with nonce
+      const selectDirectoryButton = document.getElementById('select-directory');
+      const processPDFsButton = document.getElementById('process-pdfs');
+      const deletePDFsButton = document.getElementById('delete-pdfs');
+      const outputElement = document.getElementById('output');
+      const loadingElement = document.getElementById('loading');
+      const instructionsElement = document.getElementById('instructions');
+
+      let selectedDirectory = '';
+
+      selectDirectoryButton.addEventListener('click', async () => {
+        console.log('Select Directory button clicked');
+        selectedDirectory = await window.electronAPI.selectDirectory();
+        outputElement.textContent = `Selected Directory: ${selectedDirectory}`;
+      });
+
+      processPDFsButton.addEventListener('click', async () => {
+        console.log('Process PDFs button clicked');
+        const apiKey = document.getElementById('api-key').value;
+        if (!apiKey) {
+          Swal.fire('Error', 'Please enter your OpenAI API key.', 'error');
+          return;
+        }
+        loadingElement.style.display = 'block';  // Show the loading indicator
+        const result = await window.electronAPI.processPDFs(selectedDirectory, apiKey);
+        loadingElement.style.display = 'none';  // Hide the loading indicator
         if (result.error) {
           Swal.fire('Error', result.error, 'error');
         } else {
           outputElement.textContent = result.success;
-          Swal.fire('Success', 'PDFs deleted successfully.', 'success');
+          instructionsElement.style.display = 'block';  // Show instructions
+          Swal.fire('Success', 'PDFs processed successfully.', 'success');
         }
-      }
+      });
+
+      deletePDFsButton.addEventListener('click', async () => {
+        console.log('Delete PDFs button clicked');
+        const confirmed = confirm('Have you verified the combined output text file and are sure you want to delete the PDFs?');
+        if (confirmed) {
+          const result = await window.electronAPI.deletePDFs(selectedDirectory);
+          if (result.error) {
+            Swal.fire('Error', result.error, 'error');
+          } else {
+            outputElement.textContent = result.success;
+            Swal.fire('Success', 'PDFs deleted successfully.', 'success');
+          }
+        }
+      });
     });
   </script>
 </body>
