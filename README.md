@@ -1,6 +1,6 @@
 # Zerox-Electron
 
-Zerox-Electron is a simple app for processing and converting PDF files using OpenAI's API. This application allows users to select a directory containing PDF files, convert them, verify the combined output, and delete the original PDF files if desired.
+Zerox-Electron is a simple app for processing and converting PDF files into a digestible, combined TXT file using OpenAI's API. This application allows users to select a directory containing PDF files, convert them, verify the combined output, and delete the original PDF files if desired.
 
 ## Features
 
