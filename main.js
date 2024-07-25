@@ -1,6 +1,6 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
-const fs = require('fs').promises; // Use promises for asynchronous operations
+const fs = require('fs').promises;
 const crypto = require('crypto');
 const { zerox } = require('zerox');
 
@@ -26,6 +26,10 @@ async function createWindow() {
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>PDF Processor</title>
       <style nonce="${nonce}">
+        body {
+          font-family: Arial, sans-serif;
+          margin: 20px;
+        }
         #loading {
           display: none;
           font-size: 1.2em;
@@ -36,9 +40,21 @@ async function createWindow() {
           font-size: 1.1em;
           color: green;
         }
+        #selected-directory, #output {
+          margin-top: 10px;
+          font-size: 1em;
+          color: black;
+          word-wrap: break-word; /* Ensure text wraps */
+          white-space: pre-wrap; /* Preserve whitespace and line breaks */
+        }
+        #output a {
+          color: blue;
+          text-decoration: underline;
+          cursor: pointer;
+        }
       </style>
-      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
-      <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'nonce-${nonce}'; style-src 'self' 'nonce-${nonce}' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data:; font-src 'self';">
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" nonce="${nonce}">
+      <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'nonce-${nonce}' https://cdn.jsdelivr.net; style-src 'self' 'nonce-${nonce}' https://cdn.jsdelivr.net; img-src 'self' data:; font-src 'self';">
     </head>
     <body>
       <h1>PDF Processor</h1>
@@ -49,8 +65,8 @@ async function createWindow() {
       <pre id="output"></pre>
       <div id="loading">Processing PDFs, please wait...</div>
       <div id="instructions">Please verify the combined output in the text file before deleting the PDFs.</div>
+      <div id="selected-directory"></div>
 
-      <script nonce="${nonce}" src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
       <script nonce="${nonce}">
         let selectedDirectory = ''; // Store selected directory globally
 
@@ -60,14 +76,18 @@ async function createWindow() {
         const apiKeyInput = document.getElementById('api-key');
         const outputElement = document.getElementById('output');
         const loadingElement = document.getElementById('loading');
+        const selectedDirectoryElement = document.getElementById('selected-directory');
 
         selectDirectoryButton.addEventListener('click', async () => {
           const directory = await window.electronAPI.selectDirectory();
           selectedDirectory = directory; // Store selected directory
           console.log(\`Selected Directory: \${directory}\`);
+          selectedDirectoryElement.textContent = \`Selected Directory: \${directory}\`; // Display selected directory
         });
 
         processPDFsButton.addEventListener('click', async () => {
+          // Clear previous output
+          outputElement.innerHTML = '';
           const apiKey = apiKeyInput.value;
           if (!selectedDirectory || !apiKey) {
             Swal.fire('Error', 'Directory path and API key are required.', 'error');
@@ -79,7 +99,12 @@ async function createWindow() {
           if (result.error) {
             Swal.fire('Error', result.error, 'error');
           } else {
-            outputElement.textContent = result.success;
+            const outputPath = result.success;
+            outputElement.innerHTML = \`Combined output written to <a href="#" id="output-link">\${outputPath}</a>\`;
+            document.getElementById('output-link').addEventListener('click', (event) => {
+              event.preventDefault();
+              window.electronAPI.openPath(outputPath);
+            });
           }
         });
 
@@ -95,6 +120,12 @@ async function createWindow() {
             Swal.fire('Success', result.success, 'success');
           }
         });
+
+        // Inject SweetAlert2 script with nonce dynamically
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js';
+        script.nonce = '${nonce}';
+        document.head.appendChild(script);
       </script>
     </body>
     </html>
@@ -155,7 +186,7 @@ ipcMain.handle('process-pdfs', async (event, directoryPath, apiKey) => {
   }
 
   await fs.writeFile(outputFilePath, combinedOutput);
-  return { success: `Combined output written to ${outputFilePath}` };
+  return { success: outputFilePath };
 });
 
 ipcMain.handle('delete-pdfs', async (event, directoryPath) => {
@@ -167,4 +198,9 @@ ipcMain.handle('delete-pdfs', async (event, directoryPath) => {
   }
 
   return { success: 'All PDF files deleted.' };
+});
+
+ipcMain.handle('open-path', async (event, filePath) => {
+  const directory = path.dirname(filePath);
+  await shell.openPath(directory);
 });
