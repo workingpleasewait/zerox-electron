@@ -61,18 +61,15 @@ async function createWindow() {
       <button id="select-directory">Select Directory</button>
       <input type="text" id="api-key" placeholder="OpenAI API Key">
       <button id="process-pdfs">Process PDFs</button>
-      <button id="delete-pdfs">Delete PDFs</button>
       <pre id="output"></pre>
-      <div id="loading">Processing PDFs, please wait...</div>
+      <div id="loading">Processing, please wait...</div>
       <div id="instructions">Please verify the combined output in the text file before deleting the PDFs.</div>
       <div id="selected-directory"></div>
-
       <script nonce="${nonce}">
         let selectedDirectory = ''; // Store selected directory globally
 
         const selectDirectoryButton = document.getElementById('select-directory');
         const processPDFsButton = document.getElementById('process-pdfs');
-        const deletePDFsButton = document.getElementById('delete-pdfs');
         const apiKeyInput = document.getElementById('api-key');
         const outputElement = document.getElementById('output');
         const loadingElement = document.getElementById('loading');
@@ -80,9 +77,9 @@ async function createWindow() {
 
         selectDirectoryButton.addEventListener('click', async () => {
           const directory = await window.electronAPI.selectDirectory();
-          selectedDirectory = directory; // Store selected directory
-          console.log(\`Selected Directory: \${directory}\`);
-          selectedDirectoryElement.textContent = \`Selected Directory: \${directory}\`; // Display selected directory
+          selectedDirectory = directory[0]; // Store selected directory
+          console.log(\`Selected Directory: \${directory[0]}\`);
+          selectedDirectoryElement.textContent = \`Selected Directory: \${directory[0]}\`; // Display selected directory
         });
 
         processPDFsButton.addEventListener('click', async () => {
@@ -94,113 +91,98 @@ async function createWindow() {
             return;
           }
           loadingElement.style.display = 'block';
+
+          // Start animation
+          let dotCount = 0;
+          const loadingInterval = setInterval(() => {
+            dotCount = (dotCount + 1) % 4;
+            loadingElement.textContent = 'Processing, please wait' + '.'.repeat(dotCount);
+          }, 500);
+
           const result = await window.electronAPI.processPDFs(selectedDirectory, apiKey);
+          clearInterval(loadingInterval); // Stop animation
           loadingElement.style.display = 'none';
+
           if (result.error) {
             Swal.fire('Error', result.error, 'error');
           } else {
-            const outputPath = result.success;
-            outputElement.innerHTML = \`Combined output written to <a href="#" id="output-link">\${outputPath}</a>\`;
-            document.getElementById('output-link').addEventListener('click', (event) => {
-              event.preventDefault();
-              window.electronAPI.openPath(outputPath);
+            const outputFilePath = result.success;
+            outputElement.innerHTML = \`Output File: <a href="#" id="output-file-link">\${outputFilePath}</a>\`;
+            document.getElementById('output-file-link').addEventListener('click', async (e) => {
+              e.preventDefault();
+              await window.electronAPI.openPath(outputFilePath);
             });
+            Swal.fire('Success', 'PDFs processed successfully.', 'success');
           }
         });
-
-        deletePDFsButton.addEventListener('click', async () => {
-          if (!selectedDirectory) {
-            Swal.fire('Error', 'Directory path is required.', 'error');
-            return;
-          }
-          const result = await window.electronAPI.deletePDFs(selectedDirectory);
-          if (result.error) {
-            Swal.fire('Error', result.error, 'error');
-          } else {
-            Swal.fire('Success', result.success, 'success');
-          }
-        });
-
-        // Inject SweetAlert2 script with nonce dynamically
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js';
-        script.nonce = '${nonce}';
-        document.head.appendChild(script);
       </script>
     </body>
-    </html>
-  `;
+    </html>`;
 
-  mainWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
+  mainWindow.loadURL(`data:text/html;charset=UTF-8,${encodeURIComponent(htmlContent)}`);
+
+  mainWindow.on('closed', function () {
+    mainWindow = null;
+  });
+
+  ipcMain.handle('select-directory', async () => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openDirectory']
+    });
+    return result.filePaths;
+  });
+
+  ipcMain.handle('process-pdfs', async (event, directoryPath, apiKey) => {
+    console.log(`Selected Directory: ${directoryPath}`);
+
+    if (!directoryPath || !apiKey) {
+      return { error: 'Directory path and API key are required.' };
+    }
+
+    const outputFilePath = path.resolve(directoryPath, 'combined_output.txt');
+    const files = await fs.readdir(directoryPath);
+    console.log(`Files in Directory: ${files}`);
+
+    const pdfFiles = files.filter(file => file.toLowerCase().endsWith('.pdf'));
+    console.log(`PDF Files: ${pdfFiles}`);
+
+    if (pdfFiles.length === 0) {
+      return { error: 'No PDF files found in the directory.' };
+    }
+
+    let combinedOutput = '';
+
+    for (const pdfFile of pdfFiles) {
+      try {
+        const result = await zerox({
+          filePath: path.resolve(directoryPath, pdfFile),
+          openaiAPIKey: apiKey,
+        });
+        combinedOutput += `Result for ${pdfFile}:\n${JSON.stringify(result, null, 2)}\n\n`;
+      } catch (error) {
+        combinedOutput += `Error processing ${pdfFile}: ${error.message}\n\n`;
+      }
+    }
+
+    await fs.writeFile(outputFilePath, combinedOutput);
+    return { success: outputFilePath };
+  });
+
+  ipcMain.handle('open-path', async (event, filePath) => {
+    await shell.openPath(filePath);
+  });
 }
 
-app.whenReady().then(() => {
-  createWindow();
+app.on('ready', createWindow);
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
-  });
-});
-
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
-});
-
-ipcMain.handle('select-directory', async (event) => {
-  const result = await dialog.showOpenDialog({
-    properties: ['openDirectory']
-  });
-  return result.filePaths[0];
-});
-
-ipcMain.handle('process-pdfs', async (event, directoryPath, apiKey) => {
-  console.log(`Selected Directory: ${directoryPath}`); // Log the selected directory path
-
-  if (!directoryPath || !apiKey) {
-    return { error: 'Directory path and API key are required.' };
+app.on('window-all-closed', function () {
+  if (process.platform !== 'darwin') {
+    app.quit();
   }
-
-  const outputFilePath = path.resolve(directoryPath, 'combined_output.txt');
-  const files = await fs.readdir(directoryPath);
-  console.log(`Files in Directory: ${files}`); // Log the files in the directory
-
-  const pdfFiles = files.filter(file => file.toLowerCase().endsWith('.pdf'));
-  console.log(`PDF Files: ${pdfFiles}`); // Log the identified PDF files
-
-  if (pdfFiles.length === 0) {
-    return { error: 'No PDF files found in the directory.' };
-  }
-
-  let combinedOutput = '';
-
-  for (const pdfFile of pdfFiles) {
-    try {
-      const result = await zerox({
-        filePath: path.resolve(directoryPath, pdfFile),
-        openaiAPIKey: apiKey,
-      });
-      combinedOutput += `Result for ${pdfFile}:\n${JSON.stringify(result, null, 2)}\n\n`;
-    } catch (error) {
-      combinedOutput += `Error processing ${pdfFile}: ${error.message}\n\n`;
-    }
-  }
-
-  await fs.writeFile(outputFilePath, combinedOutput);
-  return { success: outputFilePath };
 });
 
-ipcMain.handle('delete-pdfs', async (event, directoryPath) => {
-  const files = await fs.readdir(directoryPath);
-  const pdfFiles = files.filter(file => file.toLowerCase().endsWith('.pdf'));
-
-  for (const pdfFile of pdfFiles) {
-    await fs.unlink(path.resolve(directoryPath, pdfFile));
+app.on('activate', function () {
+  if (BrowserWindow.getAllWindows().length === 0) {
+    createWindow();
   }
-
-  return { success: 'All PDF files deleted.' };
-});
-
-ipcMain.handle('open-path', async (event, filePath) => {
-  const directory = path.dirname(filePath);
-  await shell.openPath(directory);
 });
