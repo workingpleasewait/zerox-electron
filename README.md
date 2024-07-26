@@ -1,71 +1,55 @@
 # Zerox-Electron
 
-Zerox-Electron is a simple app for processing and converting PDF files into a digestible, combined TXT file using OpenAI's API. This application allows users to select a directory containing PDF files, convert them, verify the combined output, and delete the original PDF files if desired.
+Zerox-Electron is a user-friendly application designed for processing and converting PDF files into a combined text file using OpenAI's API. This tool allows users to easily select a directory of PDF files, process them, and access the combined output file.
 
 ## Features
 
-- Select a directory containing PDF files.
-- Enter an OpenAI API key for processing.
-- Convert PDF files to a combined text output.
-- Verify the combined output before deleting original PDF files.
-- Delete original PDF files after verification.
-
-## Prerequisites
-
-- Ensure you have Node.js installed on your computer. You can download it from [nodejs.org](https://nodejs.org/).
+- **Select Directory**: Choose a directory containing PDF files for processing.
+- **Enter API Key**: Provide your OpenAI API key for processing the PDFs.
+- **Process PDFs**: Convert PDF files in the selected directory to a combined text output.
+- **Real-time Processing Feedback**: The application now includes an animation effect in the "Processing, please wait..." message, providing real-time feedback during the processing phase.
+- **Clickable Output File Link**: Once processing is complete, the output file is displayed as a clickable link, allowing you to open it directly with your default text file viewer.
 
 ## How to Use
 
-### Step-by-Step Instructions
+1. **Select Directory**: Click the "Select Directory" button and choose the folder containing your PDF files.
+2. **Enter API Key**: Input your OpenAI API key in the provided field.
+3. **Process PDFs**: Click the "Process PDFs" button to start the conversion process.
+4. **View Output**: Once processing is complete, click the output file link to open the combined text file.
 
-#### Locate the Application Folder:
-1. Open Finder.
-2. Navigate to the folder where the Zerox-Electron application files are located.
+## Installation
 
-#### Run the Application:
-1. **Open Terminal:**
-   - Open the Terminal application on your computer.
-   
-2. **Navigate to the Application Directory:**
-   - Use the `cd` command to change the directory to where the Zerox-Electron application files are located. For example:
-     ```bash
-     cd /path/to/zerox-electron
-     ```
-   
-3. **Start the Application:**
-   - Type the following command to start the application:
-     ```bash
-     npm start
-     ```
-   - This will open the application window.
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/zerox-electron.git
+   ```
+2. Navigate to the project directory:
+   ```bash
+   cd zerox-electron
+   ```
+3. Install dependencies:
+   ```bash
+   npm install
+   ```
+4. Start the application:
+   ```bash
+   npm start
+   ```
 
-### Using the Application:
-1. **Select Directory:**
-   - Click the "Select Directory" button.
-   - In the dialog that appears, navigate to and select the folder containing the PDF files you want to process.
-   
-2. **Enter API Key:**
-   - Enter your OpenAI API key in the "OpenAI API Key" field.
-   
-3. **Process PDFs:**
-   - Click the "Process PDFs" button.
-   - A loading message will appear indicating the processing is in progress.
-   - Once processing is complete, the results will be displayed in the application.
+## Changelog
 
-4. **Check the Combined Output:**
-   - Verify the combined output text file in the selected directory.
-   
-5. **Delete PDFs:**
-   - After verifying the combined output, click the "Delete PDFs" button.
-   - Confirm the prompt to delete the original PDF files.
+### July 26, 2024
 
-### Important Note
-- Make sure to verify the combined output text file before clicking the "Delete PDFs" button to ensure all data has been correctly processed.
+#### Enhancements and Fixes
 
-## Troubleshooting
+1. **Processing Animation**:
+    - Added an animation effect to the "Processing, please wait..." message for improved user feedback.
+2. **Hyperlink for Output File**:
+    - Enhanced the functionality to display the output file as a clickable hyperlink, allowing users to open the file directly.
+3. **Removed "Delete PDFs" Button**:
+    - Removed the "Delete PDFs" button to streamline the interface and focus on core functionalities.
 
-- If the application does not respond, ensure you have the correct directory selected and that your OpenAI API key is valid.
-- For any issues, please contact your IT support team.
+---
 
 ## License
 
